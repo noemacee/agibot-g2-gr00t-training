@@ -14,6 +14,9 @@ revision `09ef91fc1de8a4eddc0f75c96c4e12b02537a230` inspected on 2026-09-13.
 The dataset requires authorized Hugging Face access. Keep downloaded data,
 provenance, and training outputs outside this public repository.
 
+See [training status, runnable stages, and remaining checklist](TRAINING.md)
+for everything needed between this PR and trained/evaluated policies.
+
 ## What the recordings provide
 
 The dataset card and `meta/info.json` describe 31 episodes, 63,269 frames,

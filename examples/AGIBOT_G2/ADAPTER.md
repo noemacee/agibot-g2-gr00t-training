@@ -232,7 +232,9 @@ The current path implements command imitation with FK-derived EEF labels.
 
 ## 5. Generate statistics, then train
 
-The adapter does not compute GR00T statistics or start training. Use the
+The adapter does not compute GR00T statistics or start training. The
+[training entry point and checklist](TRAINING.md) cover statistics, smoke runs,
+fine-tuning, and held-out evaluation. You can also use the
 [training commands](README.md#gr00t-metadata-and-training) from the main GR00T
 Python environment after inspecting the prepared data. Set the dataset path to
 `.../joints/train` or `.../eef/train` and use the matching modality config.
