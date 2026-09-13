@@ -50,6 +50,23 @@ do not mistake repeated frames for independent visual observations.
 
 ## Two experiments
 
+Both models predict the complete set of control targets represented in this
+dataset. Body, head, and both hands are learned joint outputs in **both**
+variants, not just observations or externally supplied commands:
+
+- **Joint model:** 5 body + 3 head + 7 left arm + 7 right arm + 10 left hand
+  + 10 right hand = **42 joint targets per timestep**.
+- **EEF + joint model:** left and right arm poses (6 values each in the chosen
+  XYZ + rotation-vector format) **plus 28 joint targets** (5 body + 3 head
+  + 10 left hand + 10 right hand) = **40 action values per timestep**.
+
+The EEF variant changes only the representation of the two arms. It predicts
+both arm poses and the other joints together in one synchronized action chunk
+from one model, with supervision for every included output. Arm joint commands
+are then obtained through IK; body, head, and hand joint targets come directly
+from the model. The scope here is the joints recorded in this dataset; any
+additional robot actuators require corresponding data and configuration.
+
 Train separate checkpoints initially, with identical source episode splits,
 camera views, instructions, action horizon, and training budget.
 
@@ -65,9 +82,11 @@ camera views, instructions, action horizon, and training budget.
 Start with joint prediction to establish the data-loading and imitation baseline.
 Then compare relative EEF prediction, which matches the action-space approach
 used by N1.7 pretraining. This is an experimental choice, not evidence that one
-will perform better on this dataset. A later hybrid model can predict both arm
-joints and poses, but needs consistency losses or a clear execution authority;
-do not send two conflicting arm targets to the robot.
+will perform better on this dataset. Predicting arm joint targets in addition
+to arm poses would be a separate experiment requiring a clear choice of which
+arm targets the controller executes. The EEF + joint model described here
+already combines arm pose prediction with joint prediction for the rest of
+the recorded robot.
 
 ## Shared data preparation
 

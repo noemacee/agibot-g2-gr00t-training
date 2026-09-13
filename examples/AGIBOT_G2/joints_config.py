@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""G2 joints template; requires the prepared layout documented in README.md."""
+"""Predict all 42 recorded body, head, arm, and hand joints in one action chunk.
+
+Requires the prepared layout documented in README.md.
+"""
 
 from gr00t.configs.data.embodiment_configs import register_modality_config
 from gr00t.data.embodiment_tags import EmbodimentTag
@@ -31,8 +34,8 @@ config = {
                     if key in RELATIVE_KEYS
                     else ActionRepresentation.ABSOLUTE
                 ),
-                type=ActionType.NON_EEF if key in RELATIVE_KEYS else ActionType.NON_EEF,
-                format=ActionFormat.DEFAULT if key in RELATIVE_KEYS else ActionFormat.DEFAULT,
+                type=ActionType.NON_EEF,
+                format=ActionFormat.DEFAULT,
             )
             for key in KEYS
         ],

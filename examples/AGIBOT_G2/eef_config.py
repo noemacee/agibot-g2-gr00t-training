@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-"""G2 eef template; requires the prepared layout documented in README.md."""
+"""Predict both arm poses plus body, head, and hand joints in one action chunk.
+
+Outputs: two 6D poses + 28 joint targets = 40 values per timestep.
+Requires the prepared layout documented in README.md.
+"""
 
 from gr00t.configs.data.embodiment_configs import register_modality_config
 from gr00t.data.embodiment_tags import EmbodimentTag
@@ -13,6 +17,7 @@ from gr00t.data.types import (
 
 
 KEYS = ["body", "head", "left_eef", "right_eef", "left_hand", "right_hand"]
+# Only the arms use EEF actions. Every other key is a predicted joint target.
 RELATIVE_KEYS = ["left_eef", "right_eef"]
 
 config = {
