@@ -1,6 +1,6 @@
 # agibot-g2-gr00t-training
 
-Fork of NVIDIA Isaac GR00T with an [AGIBOT G2 training adaptation guide](examples/AGIBOT_G2/README.md) and configuration templates for **joint-angle prediction** and **end-effector pose prediction**. Dataset conversion and robot integration remain implementation work; no G2 training run is claimed.
+Fork of NVIDIA Isaac GR00T with an [AGIBOT G2 training adaptation guide](examples/AGIBOT_G2/README.md) and a [dataset adapter](examples/AGIBOT_G2/ADAPTER.md) for **joint-angle prediction** and **end-effector pose prediction**. The EEF path requires a calibrated G2 FK provider; training and robot integration remain to be completed.
 
 The original upstream documentation follows.
 

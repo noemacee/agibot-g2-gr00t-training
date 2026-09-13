@@ -1,10 +1,11 @@
 # AGIBOT G2: joint targets and end-effector pose targets
 
 This fork adapts the training workflow of NVIDIA Isaac GR00T N1.7 to AGIBOT G2.
-It provides a training design and two modality configuration templates. **The
-G2 dataset adapter, kinematic calibration, training runs, and robot controller
-integration are not implemented or validated by these templates.** Complete the
-data preparation below before running either configuration.
+It provides a training design, two modality configurations, and a
+[dataset adapter](ADAPTER.md) that writes both training layouts from LeRobot v2/v3
+snapshots. **G2 kinematic calibration, training runs, and robot controller
+integration remain to be completed.** The EEF adapter requires a calibrated FK
+provider. Follow the adapter instructions before launching either training run.
 
 Upstream baseline: `NVIDIA/Isaac-GR00T` at
 `51d4c89f72fda44cbf77285c6a8114b52676b8a1`.
@@ -90,6 +91,11 @@ the recorded robot.
 
 ## Shared data preparation
 
+Use the [adapter commands](ADAPTER.md) for the implemented workflow. The adapter
+reads v3 directly, so the standalone upstream conversion in step 2 below is an
+alternative, not a prerequisite. Steps 3–4 describe operations the adapter now
+performs; unit calibration and split selection are explicit user inputs.
+
 1. Download a pinned snapshot using existing Hugging Face login credentials:
 
    ```bash
@@ -117,7 +123,7 @@ the recorded robot.
    )
    ```
 
-3. Implement a G2 adapter that creates separate `joints` and `eef` dataset roots
+3. Run the G2 adapter to create separate `joints` and `eef` dataset roots
    with the layouts below. Store float32 arrays in `observation.state` and
    `action`; update feature shapes/names in `meta/info.json`. Preserve timing,
    videos, task labels, and a mapping back to original episodes. Add an integer
@@ -255,8 +261,7 @@ the arrays. Both templates register `NEW_EMBODIMENT`; load only one per process.
 
 Install the main environment following the [upstream README](../../README.md#installation)
 and the instructions for your GPU platform. From the repository root, with that
-environment activated, run the following **after the adapter and data checks
-are complete**. Change `VARIANT=joints` to `VARIANT=eef` for the second run:
+environment activated, run the following **after preparing the data and completing its checks**. Change `VARIANT=joints` to `VARIANT=eef` for the second run:
 
 ```bash
 VARIANT=joints
@@ -324,7 +329,7 @@ the model can run at the recorder's 60 Hz rate.
 
 ## Remaining implementation work
 
-- Build and validate the G2 adapter, validity filtering, and episode splits.
+- Review the adapter audit on the final cleaned snapshot and choose episode splits.
 - Confirm G2 units, pose-stream semantics, joint names, URDF, and TCP transforms.
 - Generate the two prepared dataset views and train separate checkpoints.
 - Integrate joint and Cartesian execution, and compare held-out and robot results.
