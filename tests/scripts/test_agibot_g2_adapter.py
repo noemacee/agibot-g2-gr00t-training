@@ -220,6 +220,10 @@ def test_schema_order_shards_and_validity(tmp_path, version):
     np.testing.assert_allclose(state[0, :22], np.arange(22) / 100)
     np.testing.assert_allclose(action[0, 22:], np.arange(20) / 100 + 0.1)
     assert not valid[16] and tasks[0] == 7 and indices[-1] == 39
+    # Invalid hand target is retained with a measured-position hold command.
+    assert np.isfinite(action[16, 22:]).all()
+    np.testing.assert_allclose(action[16, 22 + 5], state[16, 22 + 5])
+    np.testing.assert_allclose(action[16, 22 + 4], state[16, 22 + 4] + 0.1)
 
 
 @pytest.mark.parametrize("version", ["v2.1", "v3.0"])

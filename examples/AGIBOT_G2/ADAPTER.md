@@ -143,10 +143,12 @@ The adapter:
 
 - Reorders each source signal by joint name and applies explicit calibration.
 - Builds 42-value state and action vectors including both hands.
-- Drops rows with any invalid hand target and splits at every gap. Missing
-  targets are never replaced with zero or fed into FK. Valid spans shorter than
-  `--min-segment-frames` (default 16, minimum 16) are discarded. The manifest
-  reports both invalid rows and valid rows lost because their spans were short.
+- Keeps rows with invalid hand targets by default. Those target dimensions are
+  imputed to the measured hand position (a hold-position command), while the
+  manifest records the affected rows. This preserves complete episodes; it does
+  not claim that the imputed value is the missing demonstrator command. Use
+  `--drop-invalid-hand-targets` for strict filtering at every validity gap; that
+  mode can discard short spans and reports the loss in the manifest.
 - Reads episodes even when their rows span multiple v3 Parquet files.
 - Cuts each camera video to exactly the retained frame range, decoding and
   re-encoding H.264 rather than copying from an approximate keyframe. This adds

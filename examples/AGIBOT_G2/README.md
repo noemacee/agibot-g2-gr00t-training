@@ -134,14 +134,13 @@ performs; unit calibration and split selection are explicit user inputs.
    matching feature metadata. Export the v2 task and episode JSONL files.
 
 4. Audit `hand_target_valid` before constructing action labels. A zero target
-   with validity zero is missing data, not a hand-closing command. For the
-   supplied unmasked templates, retain only contiguous intervals with all
-   selected hand targets valid. Split intervals into independent episodes with
-   matching video cuts/timestamps, so action chunks never cross missing spans.
-   If this discards too much data, add a per-timestep/per-dimension loss mask
-   and masked statistics to the pipeline, or train a separately documented
-   reduced hand representation. The templates do **not** implement that mask.
-   Do not silently replace missing targets with zeros or feedback values.
+   with validity zero is missing data, not necessarily a hand-closing command.
+   The adapter keeps these rows by default and imputes invalid hand dimensions
+   with the measured hand position (hold), recording the affected rows in the
+   preparation manifest. This is the requested training policy, but it is an
+   assumption about missing commands and must be reviewed. Use
+   `--drop-invalid-hand-targets` for strict filtering, or implement a documented
+   per-timestep/per-dimension loss mask if the hold assumption is unsuitable.
 
 5. Split by original recording before segmentation. A starting split is
    23 train / 4 validation / 4 test episodes, adjusted for success coverage and

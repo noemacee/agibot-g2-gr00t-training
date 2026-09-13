@@ -45,10 +45,11 @@ used by both routes; there is no new model architecture in this PR.
   nonlinear mapping requires additional conversion code if the hardware uses one.
 - [ ] Review task success/failure and select train/validation/test/excluded
   episodes. Fill `recording_groups` where several episodes share a source take.
-- [ ] Decide whether the current all-hand-targets-valid filtering preserves
-  enough complete demonstrations. Missing hand commands are not zero targets.
-  If coverage remains inadequate, recollect/repair labels or implement validity-
-  masked losses and statistics; that alternative is not implemented here.
+- [ ] Review the manifest's invalid-hand counts and hold-position imputations.
+  The default preserves every selected frame; imputation is a practical fallback,
+  not a recovery of the missing demonstrator command. If that assumption is
+  unsuitable, repair labels or implement validity-masked losses and statistics;
+  masking is not in this PR.
 - [ ] For EEF: obtain the calibrated URDF/robot description and implement
   `compute_poses` using the [FK-provider contract](ADAPTER.md#4-prepare-eef--joint-prediction).
   Confirm the robot root frame, both TCP definitions, units, joint mapping, and
@@ -59,11 +60,13 @@ used by both routes; there is no new model architecture in this PR.
   Prepare both variants together when FK is ready to obtain identical splits
   and retained frames for the comparison.
 
-The prior numerical audit retained 58,648 of 96,477 frames under the sixteen-
-frame minimum and all-hand-targets-valid policy. That is a diagnostic for the
-intermediate snapshot, not a required retention rate or a result for the final
-cleaned dataset. Real dataset videos and physical calibration have not been
-validated by the synthetic tests.
+The current snapshot has 102,807 frames in the selected 44 episodes before
+hand-target imputation. The default adapter keeps all 102,807 frames, while
+recording 30,514 rows that contain at least one invalid hand dimension. The
+strict optional filtering mode would retain 72,167 frames after its 16-frame
+segment rule. These are diagnostics for this snapshot, not results for the
+final cleaned dataset. Real dataset videos and physical calibration have not
+been validated by the synthetic tests.
 
 ## Run the training stages
 

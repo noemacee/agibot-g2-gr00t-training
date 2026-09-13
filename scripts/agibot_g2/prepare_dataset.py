@@ -253,10 +253,17 @@ class Source:
                 raise ValueError(f"Episode {eid}: nonfinite {key}")
         if not np.isfinite(values["hand_target"][valid == 1]).all():
             raise ValueError(f"Episode {eid}: nonfinite valid hand target")
+        # Invalid targets are missing labels. Keep the frame available by using
+        # a hold-position target for those hand dimensions; the validity mask is
+        # retained in the source and the imputation count is reported in the
+        # preparation manifest. Callers wanting strict filtering can opt in to
+        # drop_invalid_hand_targets in prepare().
+        invalid = valid != 1
+        hand_target = np.where(invalid, values["observation.hand_position"], values["hand_target"])
         state = np.concatenate(
             [values["observation.state"], values["observation.hand_position"]], axis=1
         )
-        action = np.concatenate([values["action"], values["hand_target"]], axis=1)
+        action = np.concatenate([values["action"], hand_target], axis=1)
         return state, action, np.all(valid == 1, axis=1), tasks, indices
 
     def video(self, record, key):
@@ -512,6 +519,7 @@ def prepare(
     ffprobe="ffprobe",
     max_episode_index=None,
     require_accepted_flags=True,
+    drop_invalid_hand_targets=False,
 ):
     if not variants or set(variants) - {"joints", "eef"} or len(set(variants)) != len(variants):
         raise ValueError("Choose unique variants from joints and eef")
@@ -551,6 +559,7 @@ def prepare(
             "variants": variants,
             "max_episode_index": max_episode_index,
             "require_accepted_flags": require_accepted_flags,
+            "drop_invalid_hand_targets": drop_invalid_hand_targets,
             "filtered_episodes": [
                 {"source_episode": eid, "reason": reason} for eid, reason in filtered_episodes
             ],
@@ -575,13 +584,18 @@ def prepare(
                 manifest["episodes"].append({"source_episode": eid, "split": split})
                 continue
             state, action, valid, tasks, indices = source.episode(record)
-            segments = valid_segments(valid, minimum)
+            segments = (
+                valid_segments(valid, minimum) if drop_invalid_hand_targets else [(0, len(valid))]
+            )
             audit = {
                 "source_episode": eid,
                 "split": split,
                 "source_frames": len(valid),
                 "invalid_hand_frames": int((~valid).sum()),
-                "dropped_short_valid_frames": int(valid.sum() - sum(b - a for a, b in segments)),
+                "dropped_short_valid_frames": int(valid.sum() - sum(b - a for a, b in segments))
+                if drop_invalid_hand_targets
+                else 0,
+                "imputed_hand_target_values": int((~valid).sum() * 1),
                 "segments": [],
             }
             manifest["episodes"].append(audit)
@@ -813,6 +827,11 @@ def main():
         action="store_true",
         help="Do not require accepted status when episode_flags.json exists",
     )
+    build.add_argument(
+        "--drop-invalid-hand-targets",
+        action="store_true",
+        help="Strict legacy mode: remove rows/gaps with invalid hand targets",
+    )
     args = parser.parse_args()
     source = Source(args.source)
     if args.command == "inspect":
@@ -832,6 +851,7 @@ def main():
             args.ffprobe,
             args.max_episode_index,
             not args.allow_unreviewed_flags,
+            args.drop_invalid_hand_targets,
         )
         print(json.dumps({"output": str(args.output), "frames": report["output_frames"]}, indent=2))
 
