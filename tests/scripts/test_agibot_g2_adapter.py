@@ -369,6 +369,31 @@ def test_short_spans_are_not_joined_across_gaps():
     assert adapter.valid_segments(valid, 16) == []
 
 
+def test_episode_review_flags_and_inclusive_cutoff(tmp_path):
+    source = make_source(tmp_path)
+    adapter.write_json(
+        tmp_path / "meta/episode_flags.json",
+        {
+            "episodes": [
+                {"episode_index": 3, "status": "rejected"},
+                {"episode_index": 9, "status": "accepted"},
+            ]
+        },
+    )
+    source = adapter.Source(tmp_path)
+    # The review filter is applied before the inclusive ID limit.
+    selected, filtered = adapter.select_episodes(source, max_episode_index=9)
+    assert [r["episode_index"] for r in selected] == [9]
+    assert (3, "episode_flag_rejected") in filtered
+    adapter.write_json(
+        tmp_path / "meta/episode_flags.json",
+        {"episodes": [{"episode_index": 3, "status": "rejected"}]},
+    )
+    source = adapter.Source(tmp_path)
+    with pytest.raises(ValueError, match="no review flag"):
+        adapter.select_episodes(source, max_episode_index=9)
+
+
 def test_quaternion_orientation_and_non_arm_targets():
     model = provider()
 

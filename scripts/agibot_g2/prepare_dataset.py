@@ -116,6 +116,23 @@ class Source:
         if not np.isfinite(self.fps) or self.fps <= 0:
             raise ValueError("fps must be positive and finite")
         self.used_files = {self.root / "meta/info.json"}
+        self.episode_flags = None
+        flags_path = self.root / "meta/episode_flags.json"
+        if flags_path.is_file():
+            flags = read_json(flags_path)
+            entries = flags.get("episodes")
+            if not isinstance(entries, list):
+                raise ValueError("meta/episode_flags.json must contain an episodes list")
+            self.episode_flags = {}
+            for entry in entries:
+                eid = integer(entry.get("episode_index"), "episode flag ID")
+                status = entry.get("status")
+                if eid in self.episode_flags or status not in ("accepted", "rejected"):
+                    raise ValueError(
+                        "Episode flags must have unique IDs and accepted/rejected status"
+                    )
+                self.episode_flags[eid] = status
+            self.used_files.add(flags_path)
         if self.v3:
             paths = sorted((self.root / "meta/episodes").rglob("*.parquet"))
             self.episodes = [row for p in paths for row in pq.read_table(p).to_pylist()]
@@ -307,6 +324,30 @@ def split_assignments(manifest, episodes):
     return assignment
 
 
+def select_episodes(source, max_episode_index=None, require_accepted_flags=True):
+    """Select accepted episodes without changing the immutable source snapshot."""
+    if max_episode_index is not None:
+        max_episode_index = integer(max_episode_index, "max episode index")
+    selected, filtered = [], []
+    for record in source.episodes:
+        eid = record["episode_index"]
+        if max_episode_index is not None and eid > max_episode_index:
+            filtered.append((eid, "above_max_episode_index"))
+        elif require_accepted_flags and source.episode_flags is not None:
+            status = source.episode_flags.get(eid)
+            if status is None:
+                raise ValueError(f"Episode {eid} has no review flag")
+            if status == "accepted":
+                selected.append(record)
+            else:
+                filtered.append((eid, "episode_flag_rejected"))
+        else:
+            selected.append(record)
+    if not selected:
+        raise ValueError("Episode selection produced no accepted episodes")
+    return selected, filtered
+
+
 def calibration_arrays(calibration):
     entries = calibration["joints"]
     if set(entries) != set(JOINT_NAMES):
@@ -469,6 +510,8 @@ def prepare(
     minimum=16,
     ffmpeg="ffmpeg",
     ffprobe="ffprobe",
+    max_episode_index=None,
+    require_accepted_flags=True,
 ):
     if not variants or set(variants) - {"joints", "eef"} or len(set(variants)) != len(variants):
         raise ValueError("Choose unique variants from joints and eef")
@@ -481,13 +524,16 @@ def prepare(
             "EEF preparation requires a calibrated FK provider; observed poses are not command labels"
         )
     scales, units = calibration_arrays(calibration)
-    assignments = split_assignments(splits, source.episodes)
+    eligible_episodes, filtered_episodes = select_episodes(
+        source, max_episode_index=max_episode_index, require_accepted_flags=require_accepted_flags
+    )
+    assignments = split_assignments(splits, eligible_episodes)
     output = Path(output).resolve()
     if output.exists() or output.is_relative_to(source.root) or source.root.is_relative_to(output):
         raise ValueError("Output must be new and outside the source dataset")
     if not shutil.which(ffmpeg) or not shutil.which(ffprobe):
         raise ValueError("ffmpeg and ffprobe are required (or supply their executable paths)")
-    for record in source.episodes:
+    for record in eligible_episodes:
         if assignments[record["episode_index"]] != "exclude":
             for key in CAMERAS.values():
                 source.video(record, key)
@@ -503,6 +549,11 @@ def prepare(
             "calibration": calibration,
             "minimum_segment_frames": minimum,
             "variants": variants,
+            "max_episode_index": max_episode_index,
+            "require_accepted_flags": require_accepted_flags,
+            "filtered_episodes": [
+                {"source_episode": eid, "reason": reason} for eid, reason in filtered_episodes
+            ],
             "episodes": [],
             "statistics": "Not generated; run GR00T stats on train, reuse for validation/test.",
         }
@@ -513,7 +564,11 @@ def prepare(
         counts = dict.fromkeys(records, 0)
         video_features = {k: deepcopy(source.info["features"][k]) for k in CAMERAS.values()}
         probes = {}
-        for record in source.episodes:
+        for eid, reason in filtered_episodes:
+            manifest["episodes"].append(
+                {"source_episode": eid, "split": "filtered", "reason": reason}
+            )
+        for record in eligible_episodes:
             eid = record["episode_index"]
             split = assignments[eid]
             if split == "exclude":
@@ -752,6 +807,12 @@ def main():
     build.add_argument("--min-segment-frames", type=int, default=16)
     build.add_argument("--ffmpeg", default="ffmpeg")
     build.add_argument("--ffprobe", default="ffprobe")
+    build.add_argument("--max-episode-index", type=int, help="Inclusive source episode ID limit")
+    build.add_argument(
+        "--allow-unreviewed-flags",
+        action="store_true",
+        help="Do not require accepted status when episode_flags.json exists",
+    )
     args = parser.parse_args()
     source = Source(args.source)
     if args.command == "inspect":
@@ -769,6 +830,8 @@ def main():
             args.min_segment_frames,
             args.ffmpeg,
             args.ffprobe,
+            args.max_episode_index,
+            not args.allow_unreviewed_flags,
         )
         print(json.dumps({"output": str(args.output), "frames": report["output_frames"]}, indent=2))
 

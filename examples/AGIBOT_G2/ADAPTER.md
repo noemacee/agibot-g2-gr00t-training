@@ -18,6 +18,11 @@ Download a fixed Hugging Face revision to a new directory once the upload is
 complete. Do not run conversion against a directory that is still changing.
 The adapter takes a local source; it does not download or publish datasets.
 
+If `meta/episode_flags.json` is present, preparation requires each selected
+episode to have status `accepted`; rejected episodes are filtered automatically.
+Use `--max-episode-index 64` for an inclusive episode-ID cutoff. The intended
+selection is `episode_index <= 64` and review status `accepted`.
+
 From the repository root:
 
 ```bash
@@ -87,7 +92,8 @@ If a signal requires a nonlinear mapping, implement that conversion first;
 this adapter only implements affine per-joint calibration. Null template
 values are rejected rather than interpreted as identity calibration.
 
-The split file assigns **source episode IDs**:
+The split file assigns **selected source episode IDs** (after review-flag and
+maximum-ID filtering):
 
 ```json
 {
@@ -123,7 +129,8 @@ uv run --script scripts/agibot_g2/prepare_dataset.py prepare \
   --source-revision YOUR_EXACT_HF_COMMIT_SHA \
   --calibration /data/g2-calibration.json \
   --splits /data/g2-splits.json \
-  --variants joints
+  --variants joints \
+  --max-episode-index 64
 ```
 
 Replace the revision placeholder with the commit used for the download. This
