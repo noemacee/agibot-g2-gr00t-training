@@ -1,3 +1,11 @@
+# agibot-g2-gr00t-training
+
+Fork of NVIDIA Isaac GR00T with an [AGIBOT G2 training adaptation guide](examples/AGIBOT_G2/README.md) and configuration templates for **joint-angle prediction** and **end-effector pose prediction**. Dataset conversion and robot integration remain implementation work; no G2 training run is claimed.
+
+The original upstream documentation follows.
+
+---
+
 <div align="center">
 
   <img src="media/header_compress.png" width="800" alt="NVIDIA Isaac GR00T N1.7 Header">
