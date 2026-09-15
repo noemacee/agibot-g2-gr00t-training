@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import numpy as np
+from torch.utils.data import IterableDataset
 from tqdm import tqdm
 
 from gr00t.configs.base_config import Config
@@ -24,6 +25,16 @@ from gr00t.data.interfaces import BaseProcessor
 from gr00t.data.stats import generate_rel_stats, generate_stats
 from gr00t.utils.dist_utils import run_or_wait_on_rank0
 
+
+class _FiniteEvalDataset(IterableDataset):
+    def __init__(self, dataset):
+        self.dataset = dataset
+    def __iter__(self):
+        yield from __import__("itertools").islice(iter(self.dataset), len(self.dataset))
+    def __len__(self):
+        return 256
+    def __getattr__(self, name):
+        return getattr(self.dataset, name)
 
 class DatasetFactory:
     """
@@ -37,10 +48,6 @@ class DatasetFactory:
         self, processor: BaseProcessor
     ) -> tuple[ShardedMixtureDataset, ShardedMixtureDataset | None]:
         """Build the dataset. Returns a tuple of (train_dataset, eval_dataset)."""
-        assert self.config.training.eval_strategy == "no", (
-            "Sharded dataset does not support evaluation sets"
-        )
-
         all_datasets = []
         all_weights = []
         for dataset_spec in tqdm(
@@ -84,15 +91,12 @@ class DatasetFactory:
                 "this overrides per-dataset mix_ratio sampling weights."
             )
 
-        return (
-            ShardedMixtureDataset(
-                datasets=all_datasets,
-                weights=all_weights,
-                processor=processor,
-                seed=self.config.data.seed,
-                training=True,
-                num_shards_per_epoch=self.config.data.num_shards_per_epoch,
-                override_pretraining_statistics=self.config.data.override_pretraining_statistics,
-            ),
-            None,
-        )
+        train = ShardedMixtureDataset(datasets=all_datasets, weights=all_weights, processor=processor, seed=self.config.data.seed, training=True, num_shards_per_epoch=self.config.data.num_shards_per_epoch, override_pretraining_statistics=self.config.data.override_pretraining_statistics)
+        if self.config.training.eval_strategy == "no":
+            return train, None
+        eval_datasets = []
+        for spec in self.config.data.datasets:
+            if spec.val_dataset_path:
+                eval_datasets.append(ShardedSingleStepDataset(dataset_path=spec.val_dataset_path, embodiment_tag=EmbodimentTag(spec.embodiment_tag), modality_configs=self.config.data.modality_configs[spec.embodiment_tag], shard_size=self.config.data.shard_size, episode_sampling_rate=1.0, seed=self.config.data.seed, allow_padding=self.config.data.allow_padding))
+        evaluation = None if not eval_datasets else _FiniteEvalDataset(ShardedMixtureDataset(datasets=eval_datasets, weights=[1.0] * len(eval_datasets), processor=processor, seed=self.config.data.seed, training=False, num_shards_per_epoch=5, override_pretraining_statistics=False))
+        return train, evaluation

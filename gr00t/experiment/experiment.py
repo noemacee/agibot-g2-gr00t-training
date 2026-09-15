@@ -298,6 +298,7 @@ def run(config: Config):
         eval_strategy=config.training.eval_strategy,
         eval_steps=config.training.eval_steps,
         batch_eval_metrics=True,
+        accelerator_config={"dispatch_batches": False},
         remove_unused_columns=config.training.remove_unused_columns,
         ignore_data_skip=True,
     )

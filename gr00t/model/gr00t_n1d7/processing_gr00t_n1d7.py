@@ -866,6 +866,7 @@ class Gr00tN1d7Processor(BaseProcessor):
             for embodiment_tag, modality_config in modality_configs.items():
                 processor_kwargs["modality_configs"][embodiment_tag] = modality_config
             override_keys = [
+                "letter_box_transform",
                 "random_rotation_angle",
                 "color_jitter_params",
                 "use_relative_action",
